@@ -54,6 +54,8 @@ class MyTravalyAPIClient:
             payload_b64 = base64.b64encode(payload_json.encode("utf-8")).decode("utf-8")
             
             response = await self.client.get(endpoint, params={"payload": payload_b64})
+            if response.status_code >= 400:
+                logger.error(f"API Error Response: {response.text}")
             response.raise_for_status()
             
             data = AutocompleteResponse.model_validate(response.json())
