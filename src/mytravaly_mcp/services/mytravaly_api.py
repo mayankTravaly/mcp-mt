@@ -7,6 +7,7 @@ from typing import List
 from mytravaly_mcp.config import settings
 from mytravaly_mcp.schemas.hotel import (
     AutocompleteResponse,
+    AutocompleteSuggestion,
     SearchHotelsResponse,
     HotelResult
 )
@@ -22,12 +23,15 @@ class MyTravalyAPIClient:
         if settings.mytravaly_auth_token:
             self.headers["authToken"] = settings.mytravaly_auth_token
             
+        # Add the Origin header as Mayank requested port 3000 to be whitelisted
+        self.headers["Origin"] = "http://localhost:3000"
+            
         self.client = httpx.AsyncClient(base_url=self.base_url, headers=self.headers)
 
     async def close(self):
         await self.client.aclose()
 
-    async def get_location_id(self, location_name: str) -> str:
+    async def get_location_id(self, location_name: str) -> AutocompleteSuggestion:
         """
         Calls the Autocomplete API to resolve a location name to an internal ID.
         """
@@ -50,7 +54,7 @@ class MyTravalyAPIClient:
                     "limit": 10
                 }
             }
-            payload_json = json.dumps(payload_dict)
+            payload_json = json.dumps(payload_dict, separators=(',', ':'))
             payload_b64 = base64.b64encode(payload_json.encode("utf-8")).decode("utf-8")
             
             response = await self.client.get(endpoint, params={"payload": payload_b64})
@@ -63,21 +67,21 @@ class MyTravalyAPIClient:
             if not data.status or not data.data.suggestionList:
                 raise ValueError(f"No suggestions found for location: {location_name}")
             
-            # For simplicity, we just pick the first suggestion's ID.
+            # Pick the first suggestion which contains id, type, lat, lng.
             best_match = data.data.suggestionList[0]
-            logger.info(f"Found location ID {best_match.id} for {best_match.label}")
-            return best_match.id
+            logger.info(f"Found location: {best_match.label} (type={best_match.type}, id={best_match.id})")
+            return best_match
             
         except Exception as e:
             logger.error(f"Error in autocomplete API: {e}")
             raise
 
-    async def search_hotels(self, location_id: str) -> List[HotelResult]:
+    async def search_hotels(self, location: AutocompleteSuggestion) -> List[HotelResult]:
         """
-        Calls the Search Hotels API using a location ID and returns formatted HotelResults.
+        Calls the Search Hotels API using an autocomplete suggestion and returns formatted HotelResults.
         """
         endpoint = ""
-        logger.info(f"Searching hotels for location ID: {location_id}")
+        logger.info(f"Searching hotels for {location.label} (type={location.type}, id={location.id})")
         
         try:
             today = datetime.now()
@@ -110,12 +114,10 @@ class MyTravalyAPIClient:
                     "minPrice": 0,
                     "maxPrice": 300000,
                     "searchCriteria": {
-                        "type": "state", 
-                        # We don't have lat/lng from just the ID, but the API might ignore it if ID is present.
-                        # If required, we should parse it from autocomplete, but for now ID should suffice.
-                        "latitude": 0,
-                        "longitude": 0,
-                        "id": location_id
+                        "type": location.type,
+                        "latitude": float(location.latitude),
+                        "longitude": float(location.longitude),
+                        "id": location.id
                     }
                 }
             }
@@ -125,7 +127,7 @@ class MyTravalyAPIClient:
             
             data = SearchHotelsResponse.model_validate(response.json())
             
-            if not data.status or not data.data.listOfProperties:
+            if not data.status or not data.data or not data.data.listOfProperties:
                 return []
 
             results = []

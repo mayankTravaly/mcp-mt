@@ -72,16 +72,16 @@ class PropertyItem(BaseModel):
     propertyDetails: PropertyDetails
 
 class SearchData(BaseModel):
-    listOfProperties: List[PropertyItem]
-    limit: int
-    offset: int
-    numberOfResult: int
+    listOfProperties: List[PropertyItem] = []
+    limit: Optional[int] = None
+    offset: Optional[int] = None
+    numberOfResult: Optional[int] = None
 
 class SearchHotelsResponse(BaseModel):
     status: bool
     message: str
     responseCode: int
-    data: SearchData
+    data: Optional[SearchData] = None
 
 
 # --- Tool Output Schemas ---

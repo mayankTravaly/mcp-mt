@@ -16,11 +16,11 @@ async def search_properties(location: str) -> str:
     
     api_client = MyTravalyAPIClient()
     try:
-        # Step 1: Autocomplete to get Location ID
-        location_id = await api_client.get_location_id(location)
+        # Step 1: Autocomplete to get Location details
+        location_suggestion = await api_client.get_location_id(location)
         
-        # Step 2: Search hotels using Location ID
-        hotels = await api_client.search_hotels(location_id)
+        # Step 2: Search hotels using the full location details
+        hotels = await api_client.search_hotels(location_suggestion)
         
         # Step 3: Format Output
         output = SearchPropertiesOutput(

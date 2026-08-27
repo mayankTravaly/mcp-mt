@@ -21,7 +21,7 @@ RUN uv pip install --system -r pyproject.toml
 COPY src/ src/
 
 # Expose the port for SSE
-EXPOSE 8000
+EXPOSE 3000
 
 # Run the server
-CMD ["python", "src/mytravaly_mcp/server.py"]
+CMD ["uv", "run", "uvicorn", "mytravaly_mcp.server:app", "--host", "0.0.0.0", "--port", "3000"]
