@@ -67,8 +67,35 @@ class MyTravalyAPIClient:
             if not data.status or not data.data.suggestionList:
                 raise ValueError(f"No suggestions found for location: {location_name}")
             
-            # Pick the first suggestion which contains id, type, lat, lng.
-            best_match = data.data.suggestionList[0]
+            # Smart match: prefer exact label matches and city/state types over properties
+            suggestions = data.data.suggestionList
+            query_lower = location_name.lower()
+            
+            # 1. Exact label match (case-insensitive)
+            best_match = next(
+                (s for s in suggestions if s.label.lower() == query_lower),
+                None
+            )
+            
+            # 2. Exact match among city/state only
+            if not best_match:
+                best_match = next(
+                    (s for s in suggestions 
+                     if s.label.lower() == query_lower and s.type in ("city", "state", "country")),
+                    None
+                )
+            
+            # 3. First city/state result
+            if not best_match:
+                best_match = next(
+                    (s for s in suggestions if s.type in ("city", "state", "country")),
+                    None
+                )
+            
+            # 4. Fall back to first result
+            if not best_match:
+                best_match = suggestions[0]
+            
             logger.info(f"Found location: {best_match.label} (type={best_match.type}, id={best_match.id})")
             return best_match
             
@@ -95,7 +122,7 @@ class MyTravalyAPIClient:
                     "childrenAges": [],
                     "sortBy": "popular",
                     "currency": "INR",
-                    "limit": 10,
+                    "limit": 50,
                     "offset": 0,
                     "checkIn": today.strftime("%Y-%m-%d"),
                     "checkOut": tomorrow.strftime("%Y-%m-%d"),
