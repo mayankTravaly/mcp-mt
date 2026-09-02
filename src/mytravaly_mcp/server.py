@@ -1,8 +1,6 @@
-import uvicorn
 import logging
-from fastapi import FastAPI, Query
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from starlette.requests import Request
+from starlette.responses import JSONResponse, HTMLResponse
 from pathlib import Path
 from mytravaly_mcp.tools.search_properties import mcp_server
 from mytravaly_mcp.services.mytravaly_api import MyTravalyAPIClient
@@ -10,15 +8,22 @@ from mytravaly_mcp.services.mytravaly_api import MyTravalyAPIClient
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="MyTravaly MCP Server")
+# --- Custom Routes (added to FastMCP server) ---
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "message": "MyTravaly MCP Server is running"}
+@mcp_server.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> JSONResponse:
+    return JSONResponse({"status": "ok", "message": "MyTravaly MCP Server is running"})
 
-@app.get("/api/search")
-async def api_search(location: str = Query(..., description="City or location to search")):
+@mcp_server.custom_route("/api/search", methods=["GET"])
+async def api_search(request: Request) -> JSONResponse:
     """REST endpoint for the demo UI to search hotels."""
+    location = request.query_params.get("location")
+    if not location:
+        return JSONResponse(
+            status_code=400,
+            content={"status": False, "message": "location parameter required"}
+        )
+    
     api_client = MyTravalyAPIClient()
     try:
         suggestion = await api_client.get_location_id(location)
@@ -39,18 +44,18 @@ async def api_search(location: str = Query(..., description="City or location to
     finally:
         await api_client.close()
 
-@app.get("/", response_class=HTMLResponse)
-async def demo_ui():
+@mcp_server.custom_route("/", methods=["GET"])
+async def demo_ui(request: Request) -> HTMLResponse:
     """Serve the demo UI."""
     html_path = Path(__file__).parent / "static" / "index.html"
     return HTMLResponse(content=html_path.read_text())
 
-# Mount the FastMCP SSE application
-app.mount("/mcp", mcp_server.sse_app())
-
 def main():
     logger.info("Starting MyTravaly MCP Server on port 3000...")
-    uvicorn.run(app, host="0.0.0.0", port=3000)
+    logger.info("  Streamable HTTP (ChatGPT): /mcp")
+    logger.info("  SSE (Claude/Cursor):       /sse")
+    logger.info("  Demo UI:                   /")
+    mcp_server.run(transport="streamable-http", mount_path="/mcp")
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-mcp_server = FastMCP("MyTravaly Search Server")
+mcp_server = FastMCP("MyTravaly Search Server", host="0.0.0.0", port=3000)
 
 @mcp_server.tool(
     name="search_properties",
