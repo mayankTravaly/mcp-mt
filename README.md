@@ -9,9 +9,8 @@ MCP (Model Context Protocol) server that lets AI agents search hotels via the My
 **Prerequisites:** Python 3.12+, [uv](https://docs.astral.sh/uv/)
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/mayankTravaly/mcp-mt.git
-cd mcp-mt
+   pip install uv
+   ```
 
 # 2. Install dependencies
 uv sync

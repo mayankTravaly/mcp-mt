@@ -31,8 +31,8 @@ async def search_properties(location: str) -> str:
         return output.model_dump_json(indent=2)
         
     except Exception as e:
-        logger.error(f"Failed to search properties: {e}")
-        return f"Error occurred while searching properties: {str(e)}"
+        logger.error(f"Failed to search properties: {repr(e)}")
+        return f"Error occurred while searching properties: {repr(e)}"
         
     finally:
         await api_client.close()
